@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Logs (runtime-generated)
+logs/
+*.log
+
+# MLflow
+mlruns/
+
+# pytest / mypy cache / coverage
+.pytest_cache/
+.mypy_cache/
+.coverage
+
+# Model artifacts (tracked in repo for deployment)
+
+# Node.js / Next.js
+node_modules/
+.next/
+out/

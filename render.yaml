@@ -1,0 +1,38 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+#
+# One-click deploy: render.yaml in the repo root tells Render to spin up
+# the FastAPI service and (optionally) the Next.js frontend on Render's
+# free tier. For Vercel hosting the FE, deploy `frontend/` as a Vercel
+# project and set BACKEND_INTERNAL_URL to the Render service URL.
+#
+# Usage:
+#   1. Push to GitHub.
+#   2. Connect the repo at https://dashboard.render.com/blueprints.
+#   3. Render reads this file and offers to deploy both services.
+
+services:
+  - type: web
+    name: churn-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: LIMITER_ENABLED
+        value: "true"
+      - key: PORT
+        value: "8000"
+      - key: LLM_PROVIDER_API_KEY
+        sync: false          # set in the Render dashboard, never committed
+      - key: CORS_ORIGINS
+        sync: false          # e.g. https://churn-engine.vercel.app
+      - key: LLM_STANDARD_MODEL
+        value: "llama-3.1-8b-instant"
+      - key: LLM_HIGH_CAPACITY_MODEL
+        value: "llama-3.3-70b-versatile"
+    disk:
+      name: churn-model
+      mountPath: /app/models
+      sizeGB: 1

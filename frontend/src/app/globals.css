@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-black: #000000;
+  --color-white: #ffffff;
+  --color-red: #ef4444;
+  --color-green: #22c55e;
+  --color-zinc-950: #09090b;
+  --color-zinc-800: #27272a;
+  --color-gray-800: #1a1a1a;
+  --color-gray-700: #2a2a2a;
+  --color-gray-600: #3a3a3a;
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@layer base {
+  /* The universal reset MUST live inside @layer base — in Tailwind v4,
+     un-layered rules win over any layered utility, which would clobber
+     intentional padding utilities (e.g. AppShell's md:pl-[72px]). */
+  *, ::before, ::after, ::backdrop {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html, body {
+    height: 100%;
+    overflow-x: hidden;
+    background: #000000;
+    color: #ffffff;
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #000000;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
