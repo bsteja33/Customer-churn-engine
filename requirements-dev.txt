@@ -1,2 +1,2 @@
-locust>=2.32.0,<3.0.0
-pytest-cov>=6.0.0,<7.0.0
+locust==2.44.3
+pytest-cov==7.1.0

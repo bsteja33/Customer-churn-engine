@@ -32,8 +32,14 @@ describe("ProviderPanel", () => {
     });
   });
 
-  it("Save button writes the draft key to the store", () => {
+  it("Save button writes the draft key to the store", async () => {
     render(<ProviderPanel open={true} onClose={() => {}} />);
+    // Wait for the catalog fetch to resolve so the deferred
+    // setCatalogLoaded is consumed inside the test rather than
+    // leaking past the assertion.
+    await waitFor(() => {
+      expect(screen.queryByText(/Catalog synced/i)).toBeTruthy();
+    });
     fireEvent.change(screen.getByLabelText("API Key"), {
       target: { value: "live-key-123" },
     });
@@ -43,26 +49,38 @@ describe("ProviderPanel", () => {
     expect(hasKey(state)).toBe(true);
   });
 
-  it("Clear button resets the key", () => {
+  it("Clear button resets the key", async () => {
     useProviderStore.setState({ key: "preexisting" });
     render(<ProviderPanel open={true} onClose={() => {}} />);
+    await waitFor(() => {
+      expect(screen.queryByText(/Catalog synced/i)).toBeTruthy();
+    });
     fireEvent.click(screen.getByRole("button", { name: /Clear/i }));
     const state = useProviderStore.getState();
     expect(state.key).toBe("");
     expect(hasKey(state)).toBe(false);
   });
 
-  it("model selection writes to the store", () => {
+  it("model selection writes to the store", async () => {
     render(<ProviderPanel open={true} onClose={() => {}} />);
     fireEvent.change(screen.getByLabelText("Inference Model"), {
       target: { value: "high_capacity" },
     });
-    expect(useProviderStore.getState().model).toBe("high_capacity");
+    await waitFor(() => {
+      expect(useProviderStore.getState().model).toBe("high_capacity");
+    });
   });
 
-  it("Close button dismisses the panel", () => {
+  it("Close button dismisses the panel", async () => {
     const onClose = vi.fn();
     render(<ProviderPanel open={true} onClose={onClose} />);
+    // Wait for the catalog fetch's useEffect to resolve so the
+    // component is in a stable state before we trigger the close
+    // handler; otherwise the deferred setCatalogLoaded fires after
+    // the test ends and prints an act() warning.
+    await waitFor(() => {
+      expect(screen.queryByText(/Catalog synced/i)).toBeTruthy();
+    });
     fireEvent.click(screen.getByRole("button", { name: /Close panel/i }));
     expect(onClose).toHaveBeenCalledOnce();
   });

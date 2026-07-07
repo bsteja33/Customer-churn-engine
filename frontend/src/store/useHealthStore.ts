@@ -35,10 +35,10 @@ interface HealthState {
 }
 
 const DEFAULT_INTERVAL_MS = 15_000;
-// 60s covers Render's free-tier cold start (services sleep after
-// 15 min of inactivity; the first request after sleep takes
+// 60s covers the HF Spaces cold start (free-tier CPU Spaces sleep
+// after a period of inactivity; the first request after wake takes
 // 30–60s). Polling on a 15s tick still recovers quickly once the
-// service wakes, so a longer timeout does not stall the UI.
+// Space wakes, so a longer timeout does not stall the UI.
 const REQUEST_TIMEOUT_MS = 60_000;
 
 // --- Module-level singleton state ----------------------------------------
