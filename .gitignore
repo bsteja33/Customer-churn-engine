@@ -42,3 +42,10 @@ mlruns/
 node_modules/
 .next/
 out/
+
+# Operator-held deploy secrets. The .env.production file lives at the
+# repo root for local use; the values are set in the developer's shell
+# via `! export` and the deploy script reads from os.environ. This rule
+# keeps the file out of `git status` entirely.
+.env.production
+

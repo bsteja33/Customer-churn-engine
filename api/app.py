@@ -63,25 +63,24 @@ sys.path.insert(0, str(ROOT))
 # Secrets resolution. ``load_dotenv(override=False)`` populates
 # os.environ from a local ``.env`` file at the repo root when present,
 # but never overrides values that are already set — so platform-injected
-# env vars (Render / Railway / HF Spaces) always win over a developer's
-# local file.
+# env vars (HF Spaces, Vercel, any container host) always win over a
+# developer's local file.
 load_dotenv(ROOT / ".env", override=False)
 
 LLM_PROVIDER_API_KEY = os.environ.get("LLM_PROVIDER_API_KEY", "").strip()
 PORT = int(os.environ.get("PORT", "8000"))
 
-# Comma-separated list of allowed CORS origins. Production deployments
-# (Render, Railway, Fly, Vercel previews) override this with a
-# single env var rather than editing source. The dev defaults are
-# always included so local `make dev` keeps working.
+# Comma-separated list of allowed CORS origins. Production deploys
+# override this with a single env var rather than editing source. The
+# dev defaults are always included so local `make dev` keeps working.
 _DEFAULT_CORS_ORIGINS = (
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    # Production Vercel deploys. The default tuple must accept the
-    # live dashboard origin so a fresh Render/Railway boot serves
-    # traffic from these URLs without requiring CORS_ORIGINS to be
-    # set explicitly. Operators can still override CORS_ORIGINS to
-    # add staging, custom domains, or to remove these defaults.
+    # Production Vercel deploy. The default tuple must accept the
+    # live dashboard origin so a fresh container boot serves traffic
+    # from this URL without requiring CORS_ORIGINS to be set explicitly.
+    # Operators can still override CORS_ORIGINS to add staging, custom
+    # domains, or to remove this default.
     "https://frontend-pi-sage-79.vercel.app",
 )
 CORS_ORIGINS: tuple[str, ...] = tuple(
@@ -131,21 +130,21 @@ _threshold = float(MODEL_CONFIG.get("threshold", 0.5))
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # The model artifact is uploaded once to a persistent disk on the
-    # host (see `render.yaml`'s `disk:` block or the Railway volume in
-    # `DEPLOYMENT.md`). On a fresh container boot the file may be
-    # missing while the upload is still propagating; we want the
-    # container to start in a degraded state (`/health` returns
-    # `model_loaded: false`) rather than crash-loop, so /health stays
-    # answerable and the platform can route traffic.
+    # The model artifact is baked into the Docker image at
+    # ``/app/models/churn_model.pkl``. On a fresh container boot the
+    # file may be missing while the upload is still propagating; we
+    # want the container to start in a degraded state (``/health``
+    # returns ``model_loaded: false``) rather than crash-loop, so
+    # ``/health`` stays answerable and the platform can route traffic.
     if not _model_path.exists():
         logger.error(
             "MODEL_ARTIFACT_MISSING",
             extra={
                 "path": str(_model_path),
                 "remediation": (
-                    "Upload models/churn_model.pkl to the persistent disk "
-                    "mounted at /app/models (see DEPLOYMENT.md)."
+                    "Mount models/churn_model.pkl at /app/models inside "
+                    "the container (or rebuild the image with the file "
+                    "in COPY)."
                 ),
             },
         )
@@ -572,7 +571,7 @@ _FALLBACK_SCRIPT = (
 
 
 # Catalog of model identifiers the provider can route to. Standard is
-# the default. Recruiters and testers can switch via the in-app
+# the default. Operators and end users can switch via the in-app
 # Provider Configuration Panel, which sends X-Provider-Model.
 #
 # Real model ids are tenant-specific (each provider publishes its own).
@@ -624,9 +623,9 @@ def _generate_script(
     distinguish the cause:
 
     * ``LLM_PROVIDER_KEY_MISSING`` — set ``LLM_PROVIDER_API_KEY`` in
-      your platform's environment (Render / Railway / HF Spaces), in a
-      local ``.env`` file, or via the Provider Configuration Panel in
-      the UI. See README for placement.
+      your platform's environment (HF Spaces, Vercel, any container
+      host), in a local ``.env`` file, or via the Provider
+      Configuration Panel in the UI. See README for placement.
     * ``LLM_GENERATION_FAILED`` — the call was made but failed
       (network, quota, malformed prompt). Inspect the captured
       exception in the log.

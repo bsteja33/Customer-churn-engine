@@ -1,38 +1,17 @@
-# Enterprise Churn Engine
+# Churn Engine
 
-> A production-shaped churn prediction system: a 51-column LightGBM
-> inference pipeline with mathematically verified Tree-SHAP
-> attributions, a FastAPI service that exposes single-record and batch
-> scoring, and a Next.js dashboard that grounds an LLM-generated
-> retention plan in the model's actual drivers.
+A production-shaped customer churn prediction system: a 51-column
+LightGBM inference pipeline with mathematically verified Tree-SHAP
+attributions, a FastAPI service that exposes single-record and batch
+scoring, and a Next.js dashboard that grounds an LLM-generated
+retention plan in the model's actual drivers.
 
----
+## Live
 
-## Live demo
-
-> **Frontend is live.** The FastAPI backend is not deployed in this
-> release; follow `DEPLOYMENT.md` to host it on Render or Railway and
-> the dashboard will connect to it via the `BACKEND_INTERNAL_URL`
-> env var. The dashboard URL below is the production build on Vercel.
-
-| Surface | URL |
-|---|---|
-| **Dashboard** | https://frontend-pi-sage-79.vercel.app |
-| **Swagger UI** | backend not deployed — see `DEPLOYMENT.md` |
-| **Health probe** | backend not deployed — see `DEPLOYMENT.md` |
-| **Model catalog** | backend not deployed — see `DEPLOYMENT.md` |
-
-Run `make dev` for a local full-stack boot (http://localhost:3000 +
-http://127.0.0.1:8000). The `DEPLOYMENT.md` checklist covers the
-one-click Render / Railway / Vercel deploys.
-
----
-
-> Built as a portfolio artefact: the focus is on end-to-end ML
-> engineering, a defensible feature pipeline, and a frontend that
-> treats the model as the source of truth rather than a black box.
-
----
+- **Dashboard:** https://frontend-pi-sage-79.vercel.app
+- **API:** https://indianfincher-churn-engine.hf.space
+- **Swagger UI:** https://indianfincher-churn-engine.hf.space/docs
+- **Health:** https://indianfincher-churn-engine.hf.space/health
 
 ## Highlights
 
@@ -51,11 +30,6 @@ one-click Render / Railway / Vercel deploys.
 - **Engineered, not invented.** The retention-script prompt is
   anchored on the top SHAP drivers; missing key or LLM failure
   returns a labelled static plan tagged `[Default Action Plan]`.
-- **230/230 tests green.** 117 backend (pytest) + 113 frontend
-  (vitest). No regressions across the centralized interceptor,
-  the SHAP parity lock, or the persisted-state migration.
-
----
 
 ## Architecture
 
@@ -76,7 +50,7 @@ flowchart LR
   Form --> Results[Results terminal<br/>gauge + SHAP + precautions + plan]
 ```
 
-**Stack**
+## Stack
 
 | Layer | Choice |
 |---|---|
@@ -84,9 +58,7 @@ flowchart LR
 | Backend | FastAPI, Pydantic v2, Pandas, LightGBM 4.5+ with native Tree SHAP, slowapi rate limiting, ThreadPoolExecutor for blocking LLM calls |
 | LLM | Groq SDK (`llama-3.1-8b-instant` standard, `llama-3.3-70b-versatile` high capacity) |
 | Training data | Hugging Face `aai510-group1/telco-customer-churn`, Polars streaming |
-| Packaging | Docker Compose, Python 3.13, Node 22 |
-
----
+| Packaging | Docker Compose, Python 3.11, Node 22 |
 
 ## The 51-column inference pipeline
 
@@ -112,8 +84,6 @@ training data is rebuilt. Everything else is regenerated from the
 37-field Zod schema on the frontend. A versioned `col_map()` in
 `src/feature_engineering.py` is the single source of truth for the
 API-field → dataset-column translation.
-
----
 
 ## Tree-SHAP: the only attribution that actually sums to the model
 
@@ -148,8 +118,6 @@ The `direction` field maps 1:1 to the sign of the per-feature
 contribution, so the SHAP "f(x) = phi_0 + sum(phi_j)" identity is
 preserved end-to-end on the wire.
 
----
-
 ## Local LLM insights
 
 The retention plan endpoint (`POST /generate_retention_script`) is a
@@ -180,8 +148,6 @@ to the Zustand `useProviderStore`, which is read on every request
 by the centralized `apiFetch` interceptor and attached as
 `X-Provider-Key` and `X-Provider-Model` headers. The env-loaded
 key is the fallback when the header is absent.
-
----
 
 ## Quickstart
 
@@ -218,8 +184,6 @@ npm install
 npm run dev
 ```
 
----
-
 ## Configuration
 
 | Variable | Required | Default | Purpose |
@@ -227,17 +191,16 @@ npm run dev
 | `LLM_PROVIDER_API_KEY` | For script generation | — | Provider key. If missing, `/generate_retention_script` returns the labelled fallback and logs `LLM_PROVIDER_KEY_MISSING`. |
 | `LLM_STANDARD_MODEL` | No | `llama-3.1-8b-instant` | Model id for the "standard" slot. |
 | `LLM_HIGH_CAPACITY_MODEL` | No | `llama-3.3-70b-versatile` | Model id for the "high_capacity" slot. |
-| `HF_TOKEN` | Only if dataset is gated | — | Hugging Face token for training. |
+| `HF_TOKEN` | Only if dataset is gated | — | Hugging Face token for training data download. Not needed for inference. |
 | `LIMITER_ENABLED` | No | `true` | Set to `false` to disable the slowapi rate limiter (CI / load tests). |
 | `PORT` | No | `8000` | FastAPI listen port. |
 | `BACKEND_PORT` | No | `8000` | Port the Next.js rewrite target points at. |
-| `BACKEND_INTERNAL_URL` | No | `http://127.0.0.1:$BACKEND_PORT` | Override the FE rewrite target (for split-host deployments). |
+| `BACKEND_INTERNAL_URL` | For split-host | `http://127.0.0.1:$BACKEND_PORT` | Full backend origin. Set to the HF Space URL on the Vercel project so the rewrite forwards `/api/*` to the live API. |
+| `CORS_ORIGINS` | No | dev + production Vercel | Comma-separated list of allowed origins. |
 
 `LLM_PROVIDER_API_KEY` is read once at API startup via
 `load_dotenv(..., override=False)`, so platform-injected env vars
 always win over a local `.env`. `.env` is gitignored.
-
----
 
 ## API
 
@@ -306,8 +269,6 @@ fields weave the SHAP evidence and the practical-precaution list
 into the prompt. The two-field `risk_level` + `reasons` payload is
 still accepted for back-compat.
 
----
-
 ## Project layout
 
 ```
@@ -337,19 +298,19 @@ still accepted for back-compat.
 │   └── tests/                     # vitest unit + integration tests
 ├── tests/                         # pytest (test_api, test_src,
 │                                  # test_explain, integration)
-├── load_tests/locustfile.py
+├── load_tests/locustfile.py       # concurrent load probe
 ├── models/churn_model.pkl
 ├── .github/workflows/ci.yml
+├── deploy_huggingface.py          # HF Space provisioning (HfApi, os.environ)
 ├── .env.example
-├── docker-compose.yml
+├── docker-compose.yml             # local full-stack boot
+├── vercel.json                    # Vercel build config (rewrites in next.config.ts)
 ├── Dockerfile
 ├── Makefile
 ├── requirements.txt
 ├── requirements-dev.txt
 └── README.md
 ```
-
----
 
 ## Testing
 
@@ -369,15 +330,14 @@ test in `tests/test_explain.py` runs against the real model
 artifact and pins the `f(x) = phi_0 + sum(phi_j)` identity at
 `1e-6` tolerance.
 
----
-
 ## Operational notes
 
 - **Rate limits:** 30/min global default, 10/min on `/predict`, 5/min
   on `/generate_retention_script`.
-- **CORS:** only `http://localhost:3000` and `http://127.0.0.1:3000`
-  by default. Override `allow_origins` in `api/app.py` for
-  production.
+- **CORS:** the default tuple includes the production Vercel
+  origin (`https://frontend-pi-sage-79.vercel.app`) plus the
+  local dev origins. Set `CORS_ORIGINS` to a comma-separated list
+  to add staging, custom domains, or to remove the defaults.
 - **Model artifact:** `models/churn_model.pkl` is loaded once at
   startup via `joblib.load`. Only load artifacts from a trusted
   source — joblib is pickle-based.
@@ -388,8 +348,6 @@ artifact and pins the `f(x) = phi_0 + sum(phi_j)` identity at
 - **No authentication:** by design this is an internal tool. The
   rate limiter is the only protection on
   `/generate_retention_script`, which incurs a per-call LLM cost.
-
----
 
 ## License
 
