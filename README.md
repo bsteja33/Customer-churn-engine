@@ -8,7 +8,7 @@ retention plan in the model's actual drivers.
 
 ## Live
 
-- **Dashboard:** https://frontend-pi-sage-79.vercel.app
+- **Dashboard:** https://customerchurnengine.vercel.app
 - **API:** https://indianfincher-churn-engine.hf.space
 - **Swagger UI:** https://indianfincher-churn-engine.hf.space/docs
 - **Health:** https://indianfincher-churn-engine.hf.space/health
