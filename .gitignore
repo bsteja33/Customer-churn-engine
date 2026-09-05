@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Logs (runtime-generated)
+logs/
+*.log
+
+# MLflow
+mlruns/
+
+# pytest / mypy cache / coverage
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+coverage/
+
+# Playwright test artifacts
+test-results/
+playwright-report/
+
+# Model artifacts (tracked in repo for deployment)
+
+# Node.js / Next.js
+node_modules/
+.next/
+out/
+
+# Operator-held deploy secrets. The .env.production file lives at the
+# repo root for local use; the values are set in the developer's shell
+# via `! export` and the deploy script reads from os.environ. This rule
+# keeps the file out of `git status` entirely.
+.env.production
+

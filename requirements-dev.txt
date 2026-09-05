@@ -1,0 +1,9 @@
+# Training-only dependencies (mlflow, datasets) plus test tooling.
+# The runtime API image installs only requirements.txt.
+-r requirements.txt
+mlflow==3.16.0
+datasets==5.0.1
+locust==2.44.3
+pytest==9.1.1
+pytest-cov==7.1.0
+flake8==7.3.0
