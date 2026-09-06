@@ -127,14 +127,32 @@ def main() -> int:
     print(f"Authenticated as: {namespace}")
     print(f"Target Space:     {space_repo_id}")
 
-    print(f"Creating Space: {space_repo_id} (sdk={SPACE_SDK})")
-    api.create_repo(
-        repo_id=space_repo_id,
-        repo_type="space",
-        space_sdk=SPACE_SDK,
-        exist_ok=True,
-        private=False,
-    )
+    space_exists = False
+    try:
+        space_exists = api.repo_exists(repo_id=space_repo_id, repo_type="space")
+    except Exception as exc:
+        print(f"  ! existence check failed ({exc!r}); attempting create anyway")
+
+    if space_exists:
+        print(f"Space already exists: {space_repo_id} - skipping create")
+    else:
+        print(f"Creating Space: {space_repo_id} (sdk={SPACE_SDK})")
+        try:
+            api.create_repo(
+                repo_id=space_repo_id,
+                repo_type="space",
+                space_sdk=SPACE_SDK,
+                exist_ok=True,
+                private=False,
+            )
+        except Exception as exc:
+            return fail(
+                f"Space creation failed ({exc}). Docker Spaces on free "
+                "cpu-basic hardware now require a PRO subscription - "
+                "either upgrade the account or create the Docker Space "
+                "manually on huggingface.co and re-run this script.",
+                page_url="https://huggingface.co/pricing/pro",
+            )
 
     print("Uploading README.md (app_port=8000)")
     api.upload_file(
