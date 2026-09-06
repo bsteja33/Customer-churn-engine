@@ -15,7 +15,7 @@
 }
 
 @layer base {
-  /* The universal reset MUST live inside @layer base — in Tailwind v4,
+  /* The universal reset MUST live inside @layer base in Tailwind v4,
      un-layered rules win over any layered utility, which would clobber
      intentional padding utilities (e.g. AppShell's md:pl-[72px]). */
   *, ::before, ::after, ::backdrop {

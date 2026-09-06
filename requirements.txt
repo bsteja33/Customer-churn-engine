@@ -6,7 +6,7 @@ lightgbm==4.6.0
 scikit-learn==1.6.1
 pydantic==2.12.5
 groq==1.1.2
-python-dotenv==1.0.1
+python-dotenv==1.2.2
 slowapi==0.1.9
 joblib==1.5.2
 numpy==2.2.6

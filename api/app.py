@@ -60,7 +60,7 @@ PORT = int(os.environ.get("PORT", "8000"))
 _DEFAULT_CORS_ORIGINS = (
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://customerchurnengine.vercel.app",
+    "https://customer-churn-engine.vercel.app",
 )
 CORS_ORIGINS: tuple[str, ...] = tuple(
     o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()

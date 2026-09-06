@@ -10,7 +10,7 @@ Run from your terminal:
 
     ! export HF_TOKEN=hf_<new>
     ! export LLM_PROVIDER_API_KEY=<your-groq-key>
-    ! export CORS_ORIGINS=https://frontend-pi-sage-79.vercel.app
+    ! export CORS_ORIGINS=https://customer-churn-engine.vercel.app
     ! python deploy_huggingface.py
 """
 from __future__ import annotations
@@ -75,7 +75,7 @@ def main() -> int:
     llm_key = os.environ.get("LLM_PROVIDER_API_KEY", "").strip()
     cors_origins = (
         os.environ.get("CORS_ORIGINS", "").strip()
-        or "https://frontend-pi-sage-79.vercel.app"
+        or "https://customer-churn-engine.vercel.app"
     )
 
     if not token:
