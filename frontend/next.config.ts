@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // Standalone output serves the container build (see Dockerfile: it
+  // runs the emitted server.js). Vercel builds are excluded because its
+  // post-build step requires the legacy next-server.js.nft.json tracing
+  // file, which Next 16.3 standalone builds no longer emit
+  // (vercel/next.js#96646); Vercel handles output collection itself.
+  output: process.env.VERCEL ? undefined : "standalone",
   // Pin the Turbopack workspace root to the frontend directory.
   // Vercel otherwise infers the root from the lockfile it finds
   // first while walking up; if a global `package-lock.json` is
