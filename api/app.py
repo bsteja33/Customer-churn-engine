@@ -39,13 +39,29 @@ from pydantic import (
     model_validator,
 )
 from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
 from slowapi.middleware import SlowAPIMiddleware
 from src.feature_engineering import engineer_features_inference
 from src.config import MODEL_CONFIG
 from src.explain import explain_prediction, DEFAULT_TOP_K as _EXPLAIN_TOP_K
 
-limiter = Limiter(key_func=get_remote_address, default_limits=["30/minute"])
+
+def _client_key(request: Request) -> str:
+    """Rate-limit bucket key.
+
+    Behind platform proxies (HF Spaces) the socket peer is the proxy
+    edge, which may differ per request - IP-keying on it would hand
+    every request a fresh bucket and silently disable the limiter (the
+    exact production drift this keyfunc fixes). Prefer the first
+    X-Forwarded-For hop; fall back to the peer address.
+    """
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    client = request.client
+    return client.host if (client and client.host) else "unknown"
+
+
+limiter = Limiter(key_func=_client_key, default_limits=["30/minute"])
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
