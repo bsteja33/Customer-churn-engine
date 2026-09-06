@@ -252,6 +252,26 @@ always win over a local `.env`. `.env` is gitignored.
 
 Full OpenAPI is served at `/docs` and `/redoc`.
 
+### Health, validation, and rate-limit semantics
+
+- **`GET /health`** returns `{"status", "model_loaded", "model_path",
+  "version"}`, where `version` is the deployed commit short SHA
+  (`GIT_COMMIT_SHA` env → `COMMIT_SHA` file → `"unknown"`). The
+  deploy script stamps it as a Space variable, making deployment
+  drift externally observable: if the live `version` ever stops
+  matching `master`, the Space is running stale code.
+- **Validation (422):** semantic rule violations return `422` with a
+  structured `error.detail` - empty/all-null payloads, NaN/Infinity,
+  out-of-range values (e.g. `SatisfactionScore` 1–5, `tenure`
+  0–720, non-negative charges), and invalid binary flags. Partial
+  payloads that pass the range checks still get the zero-fill
+  `200` contract.
+- **Rate limits (429):** every `429` carries a `Retry-After` header
+  (seconds until the window resets), so clients can back off
+  correctly. Buckets are keyed by `X-Forwarded-For` (falling back
+  to the peer address) - keying on the raw peer IP would silently
+  disable limiting behind a load-balancing proxy such as HF Spaces.
+
 ### Single prediction
 
 ```bash
