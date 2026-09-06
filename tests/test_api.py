@@ -438,10 +438,12 @@ class TestPredictEndpoint:
         response = client.post("/predict", json=payload)
         assert response.status_code == 422
 
-    def test_empty_payload_returns_200(self, client: TestClient):
-        """All fields are Optional - an empty JSON object is valid."""
+    def test_empty_payload_returns_422(self, client: TestClient):
+        """An empty JSON object has no predictive signal - it would
+        otherwise silently score an all-zero feature frame, so the
+        schema-level guard rejects it with 422."""
         response = client.post("/predict", json={})
-        assert response.status_code == 200
+        assert response.status_code == 422
 
     def test_minimal_payload_returns_200(self, client: TestClient):
         minimal = {

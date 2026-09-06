@@ -31,7 +31,13 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from groq import Groq
-from pydantic import BaseModel, Field, ConfigDict, field_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    ConfigDict,
+    field_validator,
+    model_validator,
+)
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.middleware import SlowAPIMiddleware
@@ -53,6 +59,32 @@ load_dotenv(ROOT / ".env", override=False)
 
 LLM_PROVIDER_API_KEY = os.environ.get("LLM_PROVIDER_API_KEY", "").strip()
 PORT = int(os.environ.get("PORT", "8000"))
+
+
+def _resolve_git_commit() -> str:
+    """Deployment version reported by ``/health`` for drift tracking.
+
+    Lets anyone verify that the running backend matches the repository
+    (repo ``master`` <-> deployed Space). Resolution order:
+
+    1. ``GIT_COMMIT_SHA`` env var - set as a Hugging Face Space variable
+       by ``deploy_huggingface.py`` (and injectable by any container host).
+    2. ``COMMIT_SHA`` file next to the app - written by image builds that
+       bake the version in at build time.
+    3. ``"unknown"`` - local/dev runs where neither is present.
+    """
+    sha = os.environ.get("GIT_COMMIT_SHA", "").strip()
+    if sha:
+        return sha
+    marker = ROOT / "COMMIT_SHA"
+    if marker.is_file():
+        stamped = marker.read_text(encoding="utf-8").strip()
+        if stamped:
+            return stamped
+    return "unknown"
+
+
+GIT_COMMIT_SHA = _resolve_git_commit()
 
 # Dev origins are always included so local `make dev` keeps working;
 # the production origin is accepted without requiring CORS_ORIGINS to
@@ -203,10 +235,22 @@ from fastapi.responses import JSONResponse  # noqa: E402
 async def _validation_error_handler(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
-    errors = [
-        {k: v for k, v in err.items() if k != "input"} for err in exc.errors()
-    ]
-    return JSONResponse(status_code=422, content={"detail": errors})
+    def _clean(err: dict) -> dict:
+        stripped = {k: v for k, v in err.items() if k != "input"}
+        # pydantic v2 keeps the live exception object in ``ctx["error"]``
+        # for validator-raised errors; JSON cannot serialize a
+        # ValueError instance, so stringify it.
+        ctx = stripped.get("ctx")
+        if isinstance(ctx, dict):
+            stripped["ctx"] = {
+                k: (str(v) if isinstance(v, Exception) else v)
+                for k, v in ctx.items()
+            }
+        return stripped
+
+    return JSONResponse(
+        status_code=422, content={"detail": [_clean(err) for err in exc.errors()]}
+    )
 
 
 app.add_middleware(SlowAPIMiddleware)
@@ -242,43 +286,46 @@ class CustomerFeatures(BaseModel):
     # rejects NaN/Infinity floats, which JSON parsers may accept and
     # which would otherwise poison the feature frame downstream.
     model_config = ConfigDict(strict=True, extra="forbid", allow_inf_nan=False)
+
+    # Binary service flags (0/1), mirroring the frontend Zod schema.
     Gender: str | None = Field(None)
-    SeniorCitizen: int | None = Field(None)
-    Partner: int | None = Field(None)
-    Dependents: int | None = Field(None)
-    tenure: int | None = Field(None)
-    PhoneService: int | None = Field(None)
-    MultipleLines: int | None = Field(None)
-    InternetService: int | None = Field(None)
-    OnlineSecurity: int | None = Field(None)
-    OnlineBackup: int | None = Field(None)
-    DeviceProtection: int | None = Field(None)
-    TechSupport: int | None = Field(None)
-    StreamingTV: int | None = Field(None)
-    StreamingMovies: int | None = Field(None)
+    SeniorCitizen: int | None = Field(None, ge=0, le=1)
+    Partner: int | None = Field(None, ge=0, le=1)
+    Dependents: int | None = Field(None, ge=0, le=1)
+    tenure: int | None = Field(None, ge=0, le=720)  # months; 720 = 60 years
+    PhoneService: int | None = Field(None, ge=0, le=1)
+    MultipleLines: int | None = Field(None, ge=0, le=1)
+    InternetService: int | None = Field(None, ge=0, le=1)
+    OnlineSecurity: int | None = Field(None, ge=0, le=1)
+    OnlineBackup: int | None = Field(None, ge=0, le=1)
+    DeviceProtection: int | None = Field(None, ge=0, le=1)
+    TechSupport: int | None = Field(None, ge=0, le=1)
+    StreamingTV: int | None = Field(None, ge=0, le=1)
+    StreamingMovies: int | None = Field(None, ge=0, le=1)
     Contract: str | None = Field(None)
-    PaperlessBilling: int | None = Field(None)
+    PaperlessBilling: int | None = Field(None, ge=0, le=1)
     PaymentMethod: str | None = Field(None)
-    MonthlyCharges: float | None = Field(None)
-    TotalCharges: float | None = Field(None)
-    Married: int | None = Field(None)
-    NumberOfDependents: int | None = Field(None)
-    NumberOfReferrals: int | None = Field(None)
-    SatisfactionScore: int | None = Field(None)
+    MonthlyCharges: float | None = Field(None, ge=0, le=1_000_000)
+    TotalCharges: float | None = Field(None, ge=0, le=1_000_000)
+    Married: int | None = Field(None, ge=0, le=1)
+    NumberOfDependents: int | None = Field(None, ge=0, le=50)
+    NumberOfReferrals: int | None = Field(None, ge=0, le=50)
+    # Survey scale is 1-5 (IBM Telco churn dataset).
+    SatisfactionScore: int | None = Field(None, ge=1, le=5)
     InternetType: str | None = Field(None)
     Offer: str | None = Field(None)
-    Age: int | None = Field(None)
-    AvgMonthlyGBDownload: int | None = Field(None)
-    AvgMonthlyLongDistanceCharges: float | None = Field(None)
-    CLTV: int | None = Field(None)
-    Under30: int | None = Field(None)
-    UnlimitedData: int | None = Field(None)
-    StreamingMusic: int | None = Field(None)
-    ReferredAFriend: int | None = Field(None)
-    TotalRefunds: float | None = Field(None)
-    TotalExtraDataCharges: int | None = Field(None)
-    TotalLongDistanceCharges: float | None = Field(None)
-    TotalRevenue: float | None = Field(None)
+    Age: int | None = Field(None, ge=0, le=120)
+    AvgMonthlyGBDownload: int | None = Field(None, ge=0, le=10_000)
+    AvgMonthlyLongDistanceCharges: float | None = Field(None, ge=0, le=1_000_000)
+    CLTV: int | None = Field(None, ge=0, le=1_000_000)
+    Under30: int | None = Field(None, ge=0, le=1)
+    UnlimitedData: int | None = Field(None, ge=0, le=1)
+    StreamingMusic: int | None = Field(None, ge=0, le=1)
+    ReferredAFriend: int | None = Field(None, ge=0, le=1)
+    TotalRefunds: float | None = Field(None, ge=0, le=1_000_000)
+    TotalExtraDataCharges: int | None = Field(None, ge=0, le=1_000_000)
+    TotalLongDistanceCharges: float | None = Field(None, ge=0, le=1_000_000)
+    TotalRevenue: float | None = Field(None, ge=0, le=1_000_000)
 
     @field_validator("*")
     @classmethod
@@ -286,6 +333,20 @@ class CustomerFeatures(BaseModel):
         if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
             raise ValueError("NaN or Infinity is not allowed for float fields")
         return v
+
+    @model_validator(mode="after")
+    def _reject_empty_payload(self):
+        """Empty JSON objects predict from an all-zero feature frame and
+        return a meaningless "no-signal" score; reject them loudly with
+        422 instead. Partial payloads (at least one field set) remain
+        valid, preserving the zero-fill contract in ``_align_to_model``.
+        """
+        if all(value is None for value in self.model_dump().values()):
+            raise ValueError(
+                "empty payload: provide at least one customer field "
+                "(e.g. SatisfactionScore, tenure, MonthlyCharges)"
+            )
+        return self
 
 
 class FeatureImportance(BaseModel):
@@ -392,11 +453,13 @@ def health_check(request: Request):
     # ``app.state.model`` is always set (possibly None) by the lifespan
     # handler, so the check must be a truthiness test - ``hasattr``
     # would report a healthy model even in the degraded no-artifact
-    # boot state.
+    # boot state. ``version`` is the deployed commit so drift between
+    # this Space and the repository's master is externally observable.
     return {
         "status": "healthy" if request.app.state.model is not None else "degraded",
         "model_loaded": request.app.state.model is not None,
         "model_path": str(_model_path),
+        "version": GIT_COMMIT_SHA,
     }
 
 
@@ -406,9 +469,11 @@ def _align_to_model(df: pd.DataFrame, expected: list[str] | None) -> pd.DataFram
     Behavior:
 
     * Missing columns are back-filled with 0 and logged as a warning.
-      This preserves the prior API contract - an empty / partial
-      payload still returns HTTP 200 with a "no-signal" prediction
-      (every blank field is treated as 0, the model's neutral default).
+      This preserves the prior API contract - a partial payload still
+      returns HTTP 200 with every blank field treated as 0 (the
+      model's neutral default). Fully empty payloads are rejected at
+      the schema layer (``CustomerFeatures._reject_empty_payload``)
+      with a 422 before ever reaching this function.
     * Extra columns (not in ``expected``) are dropped and logged.
     * If the model's expected feature list is unavailable (``None``)
       we return the frame as-is.

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 import time
 import urllib.request
@@ -68,6 +69,27 @@ def fail(msg: str, page_url: str, code: int = 1) -> int:
     print(f"  ! {msg}", file=sys.stderr)
     print(f"  inspect: {page_url}", file=sys.stderr)
     return code
+
+
+def git_short_sha() -> str:
+    """Short commit hash of the working tree being deployed.
+
+    Stamped onto the Space as the ``GIT_COMMIT_SHA`` variable so
+    ``/health`` can report it and drift between the repo and the
+    running backend is externally observable. An explicit
+    ``GIT_COMMIT_SHA`` env var always wins.
+    """
+    explicit = os.environ.get("GIT_COMMIT_SHA", "").strip()
+    if explicit:
+        return explicit
+    try:
+        out = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=REPO_ROOT, capture_output=True, text=True, check=True,
+        )
+        return out.stdout.strip() or "unknown"
+    except Exception:
+        return "unknown"
 
 
 def main() -> int:
@@ -175,6 +197,11 @@ def main() -> int:
     print("Setting variable: CORS_ORIGINS")
     api.add_space_variable(
         repo_id=space_repo_id, key="CORS_ORIGINS", value=cors_origins,
+    )
+    commit_sha = git_short_sha()
+    print(f"Setting variable: GIT_COMMIT_SHA={commit_sha}")
+    api.add_space_variable(
+        repo_id=space_repo_id, key="GIT_COMMIT_SHA", value=commit_sha,
     )
     if llm_key:
         print("Setting secret:   LLM_PROVIDER_API_KEY (value redacted)")
