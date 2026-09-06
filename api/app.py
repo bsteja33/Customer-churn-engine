@@ -38,7 +38,8 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from src.feature_engineering import engineer_features_inference
 from src.config import MODEL_CONFIG
@@ -235,8 +236,6 @@ app.state.limiter = limiter
 if os.environ.get("LIMITER_ENABLED", "true").strip().lower() == "false":
     limiter.enabled = False
 
-app.add_exception_handler(429, _rate_limit_exceeded_handler)
-
 # FastAPI's default RequestValidationError handler re-serializes each raw
 # pydantic error including its ``input`` field. When the client submits
 # NaN/Infinity (JSON does not support them, so they arrive as Python
@@ -245,6 +244,38 @@ app.add_exception_handler(429, _rate_limit_exceeded_handler)
 # validation failure is reported as a clean 422.
 from fastapi.exceptions import RequestValidationError  # noqa: E402
 from fastapi.responses import JSONResponse  # noqa: E402
+
+
+@app.exception_handler(RateLimitExceeded)
+async def _rate_limit_exceeded_handler(
+    request: Request, exc: RateLimitExceeded
+) -> JSONResponse:
+    """429 with Retry-After.
+
+    slowapi 0.1.9's stock handler omits Retry-After (its
+    RateLimitExceeded.headers is None), so clients that back off on
+    that header - our own frontend and load tests included - get no
+    signal for when to retry. Reproduce slowapi's own header math
+    from the window stats of the limit that was actually hit, with a
+    full-window fallback if the storage is unreachable.
+    """
+    retry_after = None
+    current_limit = getattr(getattr(request, "state", None), "view_rate_limit", None)
+    if current_limit is not None:
+        try:
+            reset_at, _remaining = limiter.limiter.get_window_stats(*current_limit)
+            retry_after = max(1, int(reset_at + 1 - time.time()))
+        except Exception:  # storage failure must not turn 429 into 500
+            retry_after = None
+    if retry_after is None:
+        item = getattr(getattr(exc, "limit", None), "limit", None)
+        window = item.get_expiry() if item is not None else 60
+        retry_after = int(window)
+    return JSONResponse(
+        status_code=429,
+        content={"error": str(exc.detail)},
+        headers={"Retry-After": str(retry_after)},
+    )
 
 
 @app.exception_handler(RequestValidationError)
